@@ -68,9 +68,13 @@ void printSectionTable() {
 void fileBufferToImageBuffer() {
     DWORD sizeOfImage = gImageOptionalHeader->SizeOfImage;
     imageBuffer = (BYTE *) malloc(sizeOfImage);
+    if (imageBuffer == NULL) {
+        printf("Failed to allocate memory for imageBuffer.\n");
+        return;
+    }
     memset(imageBuffer, 0x00, sizeOfImage);
     //拷贝头和节表
-    strncpy(imageBuffer, fileBuffer, gImageOptionalHeader->SizeOfHeaders);
+    memcpy(imageBuffer, fileBuffer, gImageOptionalHeader->SizeOfHeaders);
     //拷贝节区
     WORD numOfSections = gImageFileHeader->NumberOfSections;
     for (int i = 0; i < numOfSections; ++i) {
@@ -90,9 +94,28 @@ void imageBufferToNewBuffer() {
     struct _IMAGE_OPTIONAL_HEADER *pImageOptionalHeader = &(pImageNtHeaders->OptionalHeader);
     struct _IMAGE_SECTION_HEADER *pImageSectionHeader = (struct _IMAGE_SECTION_HEADER *) (
             (BYTE *) pImageOptionalHeader + pImageFileHeader->SizeOfOptionalHeader);
-    //计算newBuffer大小，公式为fileAlignment+对齐后的各节区大小，对齐使用fileAlignment
-    pImageSectionHeader.
-    //newBuffer = (BYTE *) malloc(newBufferSize);
+    //计算newBuffer大小，公式为SizeOfHeaders按fileAlignment对齐+各节区的SizeOfRawData
+    //还有更简便的，最后一个节区的PointerToRawData + SizeOfRawData就是整个PE文件的大小。这种暂时不做
+    //将SizeOfHeaders按fileAlignment对齐
+    DWORD sizeOfHeaders = pImageOptionalHeader->SizeOfHeaders;
+    DWORD fileAlignment = pImageOptionalHeader->FileAlignment;
+    DWORD newBufferSize = (sizeOfHeaders + fileAlignment - 1) & ~(fileAlignment - 1);
+    for (int i = 0; i < pImageFileHeader->NumberOfSections; ++i) {
+        newBufferSize += (pImageSectionHeader + i)->SizeOfRawData;
+    }
+    newBuffer = (BYTE *) malloc(newBufferSize);
+    if (newBuffer == NULL) {
+        printf("Failed to allocate memory for newBuffer.\n");
+        return;
+    }
+    memset(newBuffer, 0x00, newBufferSize);
+    memcpy(newBuffer, imageBuffer, sizeOfHeaders);
+    for (int i = 0; i < pImageFileHeader->NumberOfSections; ++i) {
+        const struct _IMAGE_SECTION_HEADER *curSectionHeader = pImageSectionHeader + i;
+        BYTE *pImageSection = (BYTE *) imageBuffer + curSectionHeader->VirtualAddress;
+        BYTE *pNewBufferSection = (BYTE *) newBuffer + curSectionHeader->PointerToRawData;
+        memcpy(pNewBufferSection, pImageSection, curSectionHeader->SizeOfRawData);
+    }
 }
 
 int main() {
@@ -104,6 +127,7 @@ int main() {
     printSectionTable();
     fileBufferToImageBuffer();
     imageBufferToNewBuffer();
-    free(fileBuffer); // 释放内存
+    free(imageBuffer); // 释放内存
+    free(newBuffer); // 释放内存
     return 0;
 }
