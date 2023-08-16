@@ -1,7 +1,7 @@
-set(CMAKE_C_COMPILER "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/gcc.exe")
+set(CMAKE_C_COMPILER "D:/C/mingw32/bin/gcc.exe")
 set(CMAKE_C_COMPILER_ARG1 "")
 set(CMAKE_C_COMPILER_ID "GNU")
-set(CMAKE_C_COMPILER_VERSION "11.2.0")
+set(CMAKE_C_COMPILER_VERSION "13.2.0")
 set(CMAKE_C_COMPILER_VERSION_INTERNAL "")
 set(CMAKE_C_COMPILER_WRAPPER "")
 set(CMAKE_C_STANDARD_COMPUTED_DEFAULT "17")
@@ -21,11 +21,11 @@ set(CMAKE_C_SIMULATE_VERSION "")
 
 
 
-set(CMAKE_AR "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/ar.exe")
-set(CMAKE_C_COMPILER_AR "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/gcc-ar.exe")
-set(CMAKE_RANLIB "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/ranlib.exe")
-set(CMAKE_C_COMPILER_RANLIB "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/gcc-ranlib.exe")
-set(CMAKE_LINKER "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/bin/ld.exe")
+set(CMAKE_AR "D:/C/mingw32/bin/ar.exe")
+set(CMAKE_C_COMPILER_AR "D:/C/mingw32/bin/gcc-ar.exe")
+set(CMAKE_RANLIB "D:/C/mingw32/bin/ranlib.exe")
+set(CMAKE_C_COMPILER_RANLIB "D:/C/mingw32/bin/gcc-ranlib.exe")
+set(CMAKE_LINKER "D:/C/mingw32/bin/ld.exe")
 set(CMAKE_MT "")
 set(CMAKE_COMPILER_IS_GNUCC 1)
 set(CMAKE_C_COMPILER_LOADED 1)
@@ -40,7 +40,7 @@ set(CMAKE_C_IGNORE_EXTENSIONS h;H;o;O;obj;OBJ;def;DEF;rc;RC)
 set(CMAKE_C_LINKER_PREFERENCE 10)
 
 # Save compiler ABI information.
-set(CMAKE_C_SIZEOF_DATA_PTR "8")
+set(CMAKE_C_SIZEOF_DATA_PTR "4")
 set(CMAKE_C_COMPILER_ABI "")
 set(CMAKE_C_BYTE_ORDER "LITTLE_ENDIAN")
 set(CMAKE_C_LIBRARY_ARCHITECTURE "")
@@ -66,7 +66,7 @@ endif()
 
 
 
-set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/lib/gcc/x86_64-w64-mingw32/11.2.0/include;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/include;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/lib/gcc/x86_64-w64-mingw32/11.2.0/include-fixed;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/x86_64-w64-mingw32/include")
-set(CMAKE_C_IMPLICIT_LINK_LIBRARIES "mingw32;gcc;moldname;mingwex;kernel32;pthread;advapi32;shell32;user32;kernel32;iconv;mingw32;gcc;moldname;mingwex;kernel32")
-set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/lib/gcc/x86_64-w64-mingw32/11.2.0;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/lib/gcc;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/x86_64-w64-mingw32/lib;C:/apps/JetBrains/CLion 2023.1.4/bin/mingw/lib")
+set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "D:/C/mingw32/lib/gcc/i686-w64-mingw32/13.2.0/include;D:/C/mingw32/include;D:/C/mingw32/lib/gcc/i686-w64-mingw32/13.2.0/include-fixed;D:/C/mingw32/i686-w64-mingw32/include")
+set(CMAKE_C_IMPLICIT_LINK_LIBRARIES "mingw32;gcc;moldname;mingwex;kernel32;pthread;advapi32;shell32;user32;kernel32;mingw32;gcc;moldname;mingwex;kernel32")
+set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "D:/C/mingw32/lib/gcc/i686-w64-mingw32/13.2.0;D:/C/mingw32/lib/gcc;D:/C/mingw32/i686-w64-mingw32/lib;D:/C/mingw32/lib")
 set(CMAKE_C_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")

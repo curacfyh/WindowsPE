@@ -7,6 +7,8 @@ long fileSize;
 BYTE *fileBuffer;
 BYTE *imageBuffer;
 BYTE *newBuffer;
+DWORD newBufferSize;
+
 const struct _IMAGE_DOS_HEADER *gFileImageDosHeader;
 const struct _IMAGE_NT_HEADERS *gFileImageNtHeaders;
 const struct _IMAGE_FILE_HEADER *gFileImageFileHeader;
@@ -147,17 +149,91 @@ void implantCode() {
     memcpy(newBuffer + blankFileOffset + 9, &E8AppendOffset, 4);
     memcpy(newBuffer + blankFileOffset + 13, &codeE9, 1);
     memcpy(newBuffer + blankFileOffset + 14, &E9AppendOffset, 4);
-    //修改OEP为植入代码的位置，在文件偏移地址0x128位置
-    memcpy(newBuffer + 0x128, &blankVirtualOffset, 4);
+    //修改OEP为植入代码的位置。注意OEP是个内存偏移地址
+    memcpy(newBuffer + gNewDosHeader->e_lfanew + 4 + 20 + 16, &blankVirtualOffset, 4);
 }
 
-void writeFile(DWORD newBufferSize) {
+//任何偏移位置植入代码。sectionIdx为节区索引，从0开始；offsetInSection为相对节区起始位置的偏移量
+void implantCodeAtPos(const DWORD sectionIdx, const DWORD offsetInSection) {
+    //准备要植入的代码 6A 00 6A 00 6A 00 6A 00 E8 XX XX XX XX E9 XX XX XX XX，共18字节，push call jmp
+    BYTE codePush[] = {0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00};
+    BYTE codeE8 = 0xE8;
+    BYTE codeE9 = 0xE9;
+    //植入代码位置的内存偏移地址和文件偏移地址
+    DWORD virtualOffset = (gNewSectionHeader + sectionIdx)->VirtualAddress + offsetInSection;
+    DWORD fileOffSet = (gNewSectionHeader + sectionIdx)->PointerToRawData + offsetInSection;
+    //计算E8代码的偏移量
+    //messageBoxA的地址 0x77530C10，这是绝对地址，所以参与计算的其它地址也用绝对地址，注意这个地址可能会变
+    //E8指令之后的地址=blankVirtualOffset+8+5+imageBase
+    DWORD E8AppendOffset = 0x77530C10 - (virtualOffset + 8 + 5 + 0x00400000);
+    printf("E8 offsetInSection: 0x%08x\n", E8AppendOffset);
+    //计算E9代码的偏移量，即原来的EOP 0x000E1D80，这是个文件地址偏移量，注意这个地址可能会变
+    DWORD E9AppendOffset = 0x000E1D80 - (virtualOffset + 18);
+    printf("E9 offsetInSection: 0x%08x\n", E9AppendOffset);
+    //植入代码
+    memcpy(newBuffer + fileOffSet, codePush, 8);
+    memcpy(newBuffer + fileOffSet + 8, &codeE8, 1);
+    memcpy(newBuffer + fileOffSet + 9, &E8AppendOffset, 4);
+    memcpy(newBuffer + fileOffSet + 13, &codeE9, 1);
+    memcpy(newBuffer + fileOffSet + 14, &E9AppendOffset, 4);
+    //修改OEP为植入代码的位置。注意OEP是个内存偏移地址
+    memcpy(newBuffer + gNewDosHeader->e_lfanew + 4 + 20 + 16, &virtualOffset, 4);
+}
+
+//通过增加节来植入代码
+void implantCodeByNewSection() {
+    struct _IMAGE_SECTION_HEADER *pOldEnd = gNewSectionHeader + gNewFileHeader->NumberOfSections;
+    //先拷贝NT头到最后一个节表的内容到新紧挨着DOS头的新位置
+    size_t copySize = 0x4 + 0x14 + 0xe0 + gNewFileHeader->NumberOfSections * 0x28;
+    memcpy(gNewDosHeader + 1, gNewNtHeaders, copySize);
+    //修改lfanew字段
+    gNewDosHeader->e_lfanew = 0x40;
+    //重新初始化newBuffer对应的各头
+    initialNewBufferHeader();
+    struct _IMAGE_SECTION_HEADER *pNewEnd = gNewSectionHeader + gNewFileHeader->NumberOfSections;
+    //设置移动头和节表后新空出来的位置为0x00
+    size_t newBlankSize = (BYTE *) pOldEnd - (BYTE *) pNewEnd;
+    memset(pNewEnd, 0x00, newBlankSize);
+    //新空白是否够放2个节表大小，即80个字节
+    if (newBlankSize < 80) {
+        printf("Not enough blank space to insert two section tables.\n");
+        exit(1);
+    }
+    //拷贝第一个节表来新增节表
+    memcpy(pNewEnd, gNewSectionHeader, 40);
+    //扩大一个文件对齐的大小，用作注入代码，即在末尾新增节区
+    newBufferSize += gNewOptionalHeader->FileAlignment;
+    newBuffer = realloc(newBuffer, newBufferSize);
+    if (newBuffer == NULL) {
+        printf("Memory reallocation failed.\n");
+        exit(1);
+    }
+    initialNewBufferHeader();
+    //修改新增的节表属性
+    struct _IMAGE_SECTION_HEADER *pLastSectionHeader = gNewSectionHeader + gNewFileHeader->NumberOfSections - 1;
+    struct _IMAGE_SECTION_HEADER *pAddedSectionHeader = pLastSectionHeader + 1;
+    BYTE name[] = {0x63, 0x68, 0x6f, 0x75, 0x00, 0x00, 0x00, 0x00};
+    memcpy(pAddedSectionHeader->Name, name, 8);
+    // 大小1是为了占位，如果是0，这个节区在内存中不存在
+    pAddedSectionHeader->Misc.VirtualSize = 1;
+    pAddedSectionHeader->VirtualAddress = gNewOptionalHeader->SizeOfImage;
+    pAddedSectionHeader->SizeOfRawData = gNewOptionalHeader->FileAlignment;
+    pAddedSectionHeader->PointerToRawData = pLastSectionHeader->PointerToRawData + pLastSectionHeader->SizeOfRawData;
+    //修改sizeOfImage。这里只是增加了一个内存对齐大小的节区，如果节区超过一个对齐大小，要先对齐再加
+    gNewOptionalHeader->SizeOfImage += gNewOptionalHeader->SectionAlignment;
+    //在新节区植入代码
+    implantCodeAtPos(gNewFileHeader->NumberOfSections, 1);
+    //修改节表数目
+    gNewFileHeader->NumberOfSections += 1;
+}
+
+void writeFile(DWORD bufferSize) {
     FILE *outFile = fopen("C:\\Users\\Chou\\Desktop\\Windows On Top_new.exe", "wb");
     if (outFile == NULL) {
         printf("Failed to open file: %s\n", outFile);
         exit(1);
     }
-    size_t writeCount = fwrite(newBuffer, newBufferSize, 1, outFile);
+    size_t writeCount = fwrite(newBuffer, bufferSize, 1, outFile);
     if (writeCount != 1) {
         printf("Failed to write file.\n");
     }
@@ -172,7 +248,7 @@ void imageBufferToNewBuffer() {
     //将SizeOfHeaders按fileAlignment对齐
     DWORD sizeOfHeaders = gVirtualImageOptionalHeader->SizeOfHeaders;
     DWORD fileAlignment = gVirtualImageOptionalHeader->FileAlignment;
-    DWORD newBufferSize = (sizeOfHeaders + fileAlignment - 1) & ~(fileAlignment - 1);
+    newBufferSize = (sizeOfHeaders + fileAlignment - 1) & ~(fileAlignment - 1);
     for (int i = 0; i < gVirtualImageFileHeader->NumberOfSections; ++i) {
         newBufferSize += (gVirtualImageSectionHeader + i)->SizeOfRawData;
     }
@@ -190,7 +266,8 @@ void imageBufferToNewBuffer() {
         memcpy(pNewBufferSection, pImageSection, curSectionHeader->SizeOfRawData);
     }
     initialNewBufferHeader();
-    implantCode();
+//    implantCode();
+    implantCodeByNewSection();
     writeFile(newBufferSize);
 }
 
