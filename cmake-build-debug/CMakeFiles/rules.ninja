@@ -12,12 +12,17 @@
 # =============================================================================
 
 #############################################
+# localized /showIncludes string
+
+msvc_deps_prefix = 注意: 包含文件:  
+
+
+#############################################
 # Rule for compiling C files.
 
 rule C_COMPILER__petool_Debug
-  depfile = $DEP_FILE
-  deps = gcc
-  command = D:\C\mingw32\bin\gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
+  deps = msvc
+  command = C:\PROGRA~1\MICROS~2\2022\ENTERP~1\VC\Tools\MSVC\1437~1.328\bin\Hostx86\x86\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building C object $out
 
 
@@ -25,7 +30,7 @@ rule C_COMPILER__petool_Debug
 # Rule for linking C executable.
 
 rule C_EXECUTABLE_LINKER__petool_Debug
-  command = cmd.exe /C "$PRE_LINK && D:\C\mingw32\bin\gcc.exe $FLAGS $LINK_FLAGS $in -o $TARGET_FILE -Wl,--out-implib,$TARGET_IMPLIB -Wl,--major-image-version,0,--minor-image-version,0 $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
+  command = cmd.exe /C "$PRE_LINK && "C:\apps\JetBrains\CLion 2023.1.4\bin\cmake\win\x64\bin\cmake.exe" -E vs_link_exe --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WINDOW~1\10\bin\100220~1.0\x86\rc.exe --mt=C:\PROGRA~2\WINDOW~1\10\bin\100220~1.0\x86\mt.exe --manifests $MANIFESTS -- C:\PROGRA~1\MICROS~2\2022\ENTERP~1\VC\Tools\MSVC\1437~1.328\bin\Hostx86\x86\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking C executable $TARGET_FILE
   restat = $RESTAT
 

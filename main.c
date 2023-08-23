@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pe_struct.h"
+#include "Utils.h"
 
 long fileSize;
 BYTE *fileBuffer;
@@ -9,17 +10,19 @@ BYTE *imageBuffer;
 BYTE *newBuffer;
 DWORD newBufferSize;
 
-const struct _IMAGE_DOS_HEADER *gFileImageDosHeader;
-const struct _IMAGE_NT_HEADERS *gFileImageNtHeaders;
-const struct _IMAGE_FILE_HEADER *gFileImageFileHeader;
-const struct _IMAGE_OPTIONAL_HEADER *gFileImageOptionalHeader;
-const struct _IMAGE_SECTION_HEADER *gFileImageSectionHeader;
+const DWORD messageboxAddr = 0x76330C10;
 
-const struct _IMAGE_DOS_HEADER *gVirtualImageDosHeader;
-const struct _IMAGE_NT_HEADERS *gVirtualImageNtHeaders;
-const struct _IMAGE_FILE_HEADER *gVirtualImageFileHeader;
-const struct _IMAGE_OPTIONAL_HEADER *gVirtualImageOptionalHeader;
-const struct _IMAGE_SECTION_HEADER *gVirtualImageSectionHeader;
+const struct _IMAGE_DOS_HEADER *gFileDosHeader;
+const struct _IMAGE_NT_HEADERS *gFileNtHeaders;
+const struct _IMAGE_FILE_HEADER *gFileFileHeader;
+const struct _IMAGE_OPTIONAL_HEADER *gFileOptionalHeader;
+const struct _IMAGE_SECTION_HEADER *gFileSectionHeader;
+
+const struct _IMAGE_DOS_HEADER *gImageDosHeader;
+const struct _IMAGE_NT_HEADERS *gImageNtHeaders;
+const struct _IMAGE_FILE_HEADER *gImageFileHeader;
+const struct _IMAGE_OPTIONAL_HEADER *gImageOptionalHeader;
+const struct _IMAGE_SECTION_HEADER *gImageSectionHeader;
 
 struct _IMAGE_DOS_HEADER *gNewDosHeader;
 struct _IMAGE_NT_HEADERS *gNewNtHeaders;
@@ -28,12 +31,30 @@ struct _IMAGE_OPTIONAL_HEADER *gNewOptionalHeader;
 struct _IMAGE_SECTION_HEADER *gNewSectionHeader;
 
 void initialFileHeader() {
-    gFileImageDosHeader = (struct _IMAGE_DOS_HEADER *) fileBuffer;
-    gFileImageNtHeaders = (struct _IMAGE_NT_HEADERS *) (fileBuffer + gFileImageDosHeader->e_lfanew);
-    gFileImageFileHeader = &(gFileImageNtHeaders->FileHeader);
-    gFileImageOptionalHeader = &(gFileImageNtHeaders->OptionalHeader);
-    gFileImageSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gFileImageOptionalHeader +
-                                                                gFileImageFileHeader->SizeOfOptionalHeader);
+    gFileDosHeader = (struct _IMAGE_DOS_HEADER *) fileBuffer;
+    gFileNtHeaders = (struct _IMAGE_NT_HEADERS *) (fileBuffer + gFileDosHeader->e_lfanew);
+    gFileFileHeader = &(gFileNtHeaders->FileHeader);
+    gFileOptionalHeader = &(gFileNtHeaders->OptionalHeader);
+    gFileSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gFileOptionalHeader +
+                                                           gFileFileHeader->SizeOfOptionalHeader);
+}
+
+void initialImageHeader() {
+    gImageDosHeader = (struct _IMAGE_DOS_HEADER *) imageBuffer;
+    gImageNtHeaders = (struct _IMAGE_NT_HEADERS *) (imageBuffer + gImageDosHeader->e_lfanew);
+    gImageFileHeader = &(gImageNtHeaders->FileHeader);
+    gImageOptionalHeader = &(gImageNtHeaders->OptionalHeader);
+    gImageSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gImageOptionalHeader +
+                                                            gImageFileHeader->SizeOfOptionalHeader);
+}
+
+void initialNewBufferHeader() {
+    gNewDosHeader = (struct _IMAGE_DOS_HEADER *) newBuffer;
+    gNewNtHeaders = (struct _IMAGE_NT_HEADERS *) (newBuffer + gNewDosHeader->e_lfanew);
+    gNewFileHeader = &(gNewNtHeaders->FileHeader);
+    gNewOptionalHeader = &(gNewNtHeaders->OptionalHeader);
+    gNewSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gNewOptionalHeader +
+                                                          gNewFileHeader->SizeOfOptionalHeader);
 }
 
 // 读取文件，返回文件开头指针
@@ -70,55 +91,38 @@ void readFile(const char *filename) {
 }
 
 void printPEHeader() {
-    printf("e_magic: %04x\n", gFileImageDosHeader->e_magic);
-    printf("e_lfanew: %08x\n", gFileImageDosHeader->e_lfanew);
-    printf("Signature: %04x\n", gFileImageNtHeaders->Signature);
-    printf("Machine: %04x\n", gFileImageFileHeader->Machine);
-    printf("Magic: %04x\n", gFileImageOptionalHeader->Magic);
+    printf("e_magic: %04x\n", gFileDosHeader->e_magic);
+    printf("e_lfanew: %08x\n", gFileDosHeader->e_lfanew);
+    printf("Signature: %04x\n", gFileNtHeaders->Signature);
+    printf("Machine: %04x\n", gFileFileHeader->Machine);
+    printf("Magic: %04x\n", gFileOptionalHeader->Magic);
 }
 
 void printSectionTable() {
-    printf("section name:%s\n", gFileImageSectionHeader->Name);
-    printf("PointerToRawData:%08x\n", gFileImageSectionHeader->PointerToRawData);
+    printf("section name:%s\n", gFileSectionHeader->Name);
+    printf("PointerToRawData:%08x\n", gFileSectionHeader->PointerToRawData);
 }
 
 void fileBufferToImageBuffer() {
-    DWORD sizeOfImage = gFileImageOptionalHeader->SizeOfImage;
+    DWORD sizeOfImage = gFileOptionalHeader->SizeOfImage;
     imageBuffer = (BYTE *) malloc(sizeOfImage);
     if (imageBuffer == NULL) {
         printf("Failed to allocate memory for imageBuffer.\n");
         return;
     }
     memset(imageBuffer, 0x00, sizeOfImage);
-    //拷贝头和节表
-    memcpy(imageBuffer, fileBuffer, gFileImageOptionalHeader->SizeOfHeaders);
+    //拷贝头和节表 TODO 参考下别人的代码
+    memcpy(imageBuffer, fileBuffer, gFileOptionalHeader->SizeOfHeaders);
     //拷贝节区
-    WORD numOfSections = gFileImageFileHeader->NumberOfSections;
+    WORD numOfSections = gFileFileHeader->NumberOfSections;
     for (int i = 0; i < numOfSections; ++i) {
-        const struct _IMAGE_SECTION_HEADER *curSectionHeader = gFileImageSectionHeader + i;
+        const struct _IMAGE_SECTION_HEADER *curSectionHeader = gFileSectionHeader + i;
         //节区起始位置
         BYTE *pFileSection = (BYTE *) fileBuffer + curSectionHeader->PointerToRawData;
         BYTE *pImageSection = (BYTE *) imageBuffer + curSectionHeader->VirtualAddress;
-        memcpy(pImageSection, pFileSection, curSectionHeader->SizeOfRawData);
+        DWORD minSize = min(curSectionHeader->Misc.VirtualSize, curSectionHeader->SizeOfRawData);
+        memcpy(pImageSection, pFileSection, minSize);
     }
-}
-
-void initialVirtualHeader() {
-    gVirtualImageDosHeader = (struct _IMAGE_DOS_HEADER *) imageBuffer;
-    gVirtualImageNtHeaders = (struct _IMAGE_NT_HEADERS *) (imageBuffer + gVirtualImageDosHeader->e_lfanew);
-    gVirtualImageFileHeader = &(gVirtualImageNtHeaders->FileHeader);
-    gVirtualImageOptionalHeader = &(gVirtualImageNtHeaders->OptionalHeader);
-    gVirtualImageSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gVirtualImageOptionalHeader +
-                                                                   gVirtualImageFileHeader->SizeOfOptionalHeader);
-}
-
-void initialNewBufferHeader() {
-    gNewDosHeader = (struct _IMAGE_DOS_HEADER *) newBuffer;
-    gNewNtHeaders = (struct _IMAGE_NT_HEADERS *) (newBuffer + gNewDosHeader->e_lfanew);
-    gNewFileHeader = &(gNewNtHeaders->FileHeader);
-    gNewOptionalHeader = &(gNewNtHeaders->OptionalHeader);
-    gNewSectionHeader = (struct _IMAGE_SECTION_HEADER *) ((BYTE *) gNewOptionalHeader +
-                                                          gNewFileHeader->SizeOfOptionalHeader);
 }
 
 void implantCode() {
@@ -136,9 +140,9 @@ void implantCode() {
     DWORD blankFileOffset = gNewSectionHeader->PointerToRawData + gNewSectionHeader->Misc.VirtualSize;
     DWORD blankVirtualOffset = gNewSectionHeader->VirtualAddress + gNewSectionHeader->Misc.VirtualSize;
     //计算E8代码的偏移量
-    //messageBoxA的地址 0x77530C10，这是绝对地址，所以参与计算的其它地址也用绝对地址，注意这个地址可能会变
+    //messageBoxA的地址是绝对地址，所以参与计算的其它地址也用绝对地址，注意这个地址可能会变
     //E8指令之后的地址=blankVirtualOffset+8+5+imageBase
-    DWORD E8AppendOffset = 0x77530C10 - (blankVirtualOffset + 8 + 5 + 0x00400000);
+    DWORD E8AppendOffset = messageboxAddr - (blankVirtualOffset + 8 + 5 + 0x00400000);
     printf("E8 offset: 0x%08x\n", E8AppendOffset);
     //计算E9代码的偏移量，即原来的EOP 0x000E1D80，这是个文件地址偏移量，注意这个地址可能会变
     DWORD E9AppendOffset = 0x000E1D80 - (blankVirtualOffset + 18);
@@ -163,9 +167,9 @@ void implantCodeAtPos(const DWORD sectionIdx, const DWORD offsetInSection) {
     DWORD virtualOffset = (gNewSectionHeader + sectionIdx)->VirtualAddress + offsetInSection;
     DWORD fileOffSet = (gNewSectionHeader + sectionIdx)->PointerToRawData + offsetInSection;
     //计算E8代码的偏移量
-    //messageBoxA的地址 0x77530C10，这是绝对地址，所以参与计算的其它地址也用绝对地址，注意这个地址可能会变
+    //messageBoxA的地址是绝对地址，所以参与计算的其它地址也用绝对地址，注意这个地址可能会变
     //E8指令之后的地址=blankVirtualOffset+8+5+imageBase
-    DWORD E8AppendOffset = 0x77530C10 - (virtualOffset + 8 + 5 + 0x00400000);
+    DWORD E8AppendOffset = messageboxAddr - (virtualOffset + 8 + 5 + 0x00400000);
     printf("E8 offsetInSection: 0x%08x\n", E8AppendOffset);
     //计算E9代码的偏移量，即原来的EOP 0x000E1D80，这是个文件地址偏移量，注意这个地址可能会变
     DWORD E9AppendOffset = 0x000E1D80 - (virtualOffset + 18);
@@ -180,7 +184,7 @@ void implantCodeAtPos(const DWORD sectionIdx, const DWORD offsetInSection) {
     memcpy(newBuffer + gNewDosHeader->e_lfanew + 4 + 20 + 16, &virtualOffset, 4);
 }
 
-//通过增加节来植入代码
+//新增节来植入代码
 void implantCodeByNewSection() {
     struct _IMAGE_SECTION_HEADER *pOldEnd = gNewSectionHeader + gNewFileHeader->NumberOfSections;
     //先拷贝NT头到最后一个节表的内容到新紧挨着DOS头的新位置
@@ -227,10 +231,32 @@ void implantCodeByNewSection() {
     gNewFileHeader->NumberOfSections += 1;
 }
 
+//合并所有节为一个节 TODO 导入表有问题，不知道为什么
+void mergeAllSectionsToOne() {
+    DWORD newVirtualSize = gNewOptionalHeader->SizeOfImage - gNewSectionHeader->Misc.VirtualSize;
+    DWORD newVirtualAddress = gNewSectionHeader->VirtualAddress;
+    DWORD newCharacteristics = gNewSectionHeader->Characteristics;
+    WORD oldSectionNum = gNewFileHeader->NumberOfSections;
+    for (int i = 1; i < oldSectionNum; ++i) {
+        newCharacteristics |= (gNewSectionHeader + i)->Characteristics;
+    }
+    newBuffer = imageBuffer;
+    initialNewBufferHeader();
+    newBufferSize = gNewOptionalHeader->SizeOfImage;
+    gNewSectionHeader->VirtualAddress = newVirtualAddress;
+    gNewSectionHeader->Misc.VirtualSize = newVirtualSize;
+    gNewSectionHeader->PointerToRawData = newVirtualAddress;
+    gNewSectionHeader->SizeOfRawData = newVirtualSize;
+    gNewSectionHeader->Characteristics = newCharacteristics;
+    gNewFileHeader->NumberOfSections = 1;
+    //清空无用节表
+    memset(gNewSectionHeader + 1, 0x00, (oldSectionNum - 1) * 40);
+}
+
 void writeFile(DWORD bufferSize) {
-    FILE *outFile = fopen("C:\\Users\\Chou\\Desktop\\Windows On Top_new.exe", "wb");
+    FILE *outFile = fopen("C:\\Users\\Chou\\Desktop\\libsharedDLL.dll", "wb");
     if (outFile == NULL) {
-        printf("Failed to open file: %s\n", outFile);
+        printf("Failed to open file.\n");
         exit(1);
     }
     size_t writeCount = fwrite(newBuffer, bufferSize, 1, outFile);
@@ -242,15 +268,15 @@ void writeFile(DWORD bufferSize) {
 
 //newBuffer为新的fileBuffer
 void imageBufferToNewBuffer() {
-    initialVirtualHeader();
+    initialImageHeader();
     //计算newBuffer大小，公式为SizeOfHeaders按fileAlignment对齐+各节区的SizeOfRawData
     //还有更简便的，最后一个节区的PointerToRawData + SizeOfRawData就是整个PE文件的大小。这种暂时不做
     //将SizeOfHeaders按fileAlignment对齐
-    DWORD sizeOfHeaders = gVirtualImageOptionalHeader->SizeOfHeaders;
-    DWORD fileAlignment = gVirtualImageOptionalHeader->FileAlignment;
+    DWORD sizeOfHeaders = gImageOptionalHeader->SizeOfHeaders;
+    DWORD fileAlignment = gImageOptionalHeader->FileAlignment;
     newBufferSize = (sizeOfHeaders + fileAlignment - 1) & ~(fileAlignment - 1);
-    for (int i = 0; i < gVirtualImageFileHeader->NumberOfSections; ++i) {
-        newBufferSize += (gVirtualImageSectionHeader + i)->SizeOfRawData;
+    for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
+        newBufferSize += (gImageSectionHeader + i)->SizeOfRawData;
     }
     newBuffer = (BYTE *) malloc(newBufferSize);
     if (newBuffer == NULL) {
@@ -259,28 +285,27 @@ void imageBufferToNewBuffer() {
     }
     memset(newBuffer, 0x00, newBufferSize);
     memcpy(newBuffer, imageBuffer, sizeOfHeaders);
-    for (int i = 0; i < gVirtualImageFileHeader->NumberOfSections; ++i) {
-        const struct _IMAGE_SECTION_HEADER *curSectionHeader = gVirtualImageSectionHeader + i;
+    for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
+        const struct _IMAGE_SECTION_HEADER *curSectionHeader = gImageSectionHeader + i;
         BYTE *pImageSection = (BYTE *) imageBuffer + curSectionHeader->VirtualAddress;
         BYTE *pNewBufferSection = (BYTE *) newBuffer + curSectionHeader->PointerToRawData;
         memcpy(pNewBufferSection, pImageSection, curSectionHeader->SizeOfRawData);
     }
     initialNewBufferHeader();
 //    implantCode();
-    implantCodeByNewSection();
-    writeFile(newBufferSize);
+//    implantCodeByNewSection();
+//    mergeAllSectionsToOne();
+//    writeFile(newBufferSize);
 }
 
 //节区中虚拟内存偏移地址转文件偏移地址，不考虑VirtualSize比SizeOfRawData大的情况
-DWORD RVAToFOA(const BYTE *pVirtualAddress) {
-    //传入的是绝对地址，需要计算偏移地址
-    DWORD RVA = pVirtualAddress - imageBuffer;
+DWORD RVAToFOA(const DWORD RVA) {
     //第几个节区
     int sectionIndex = -1;
     //节区起始位置的偏移
     DWORD offset = -1;
-    for (int i = 0; i < gVirtualImageFileHeader->NumberOfSections; ++i) {
-        const struct _IMAGE_SECTION_HEADER *pSectionTable = gVirtualImageSectionHeader + i;
+    for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
+        const struct _IMAGE_SECTION_HEADER *pSectionTable = gImageSectionHeader + i;
         if (RVA >= pSectionTable->VirtualAddress &&
             RVA <= pSectionTable->VirtualAddress + pSectionTable->Misc.VirtualSize) {
             sectionIndex = i;
@@ -289,22 +314,71 @@ DWORD RVAToFOA(const BYTE *pVirtualAddress) {
         }
     }
     if (sectionIndex == -1 || offset == -1) {
-        printf("RVA地址或偏移值非法！\n");
+        printf("RVA is not legal!\n");
     }
-    return (gFileImageSectionHeader + sectionIndex)->PointerToRawData + offset;
+    return (gFileSectionHeader + sectionIndex)->PointerToRawData + offset;
+}
+
+DWORD getFunctionByName(const char *name, const struct _IMAGE_EXPORT_DIRECTORY *pExportDirectory) {
+    DWORD addressOfNamesFOA = RVAToFOA(pExportDirectory->AddressOfNames);
+    DWORD numberOfNames = pExportDirectory->NumberOfNames;
+    DWORD AddressOfNameOrdinalsFOA = RVAToFOA(pExportDirectory->AddressOfNameOrdinals);
+    DWORD AddressOfFunctionsFOA = RVAToFOA(pExportDirectory->AddressOfFunctions);
+    DWORD ordinalOffset = -1;
+    for (int i = 0; i < numberOfNames; ++i) {
+        DWORD *ppName = (DWORD *) (fileBuffer + addressOfNamesFOA);
+        char *pName = (char *) *ppName;
+        if (strcmp(pName, name) == 0) {
+            ordinalOffset = i;
+            continue;
+        }
+    }
+    if (ordinalOffset == -1) {
+        printf("can't find the name.");
+        exit(1);
+    }
+    WORD *pOrdinal = (WORD *) (fileBuffer + AddressOfNameOrdinalsFOA);
+    WORD functionOrdinal = *(pOrdinal + ordinalOffset);
+    DWORD *pFunction = (DWORD *) (fileBuffer + AddressOfFunctionsFOA) + functionOrdinal;
+    printf("function: ", *pFunction);
+    return *pFunction;
+}
+
+//打印导出表
+void printExportTable() {
+    DWORD FOA = RVAToFOA(gFileOptionalHeader->DataDirectory[0].VirtualAddress);
+    const struct _IMAGE_EXPORT_DIRECTORY *pExportDirectory = (struct _IMAGE_EXPORT_DIRECTORY *) (fileBuffer + FOA);
+    DWORD exportTableRVA = gFileOptionalHeader->DataDirectory[0].VirtualAddress;
+    DWORD exportTableSize = gFileOptionalHeader->DataDirectory[0].Size;
+    printf("Export table VirtualAddress: 0x%04x\n", exportTableRVA);
+    printf("Export table Size: %d\n", exportTableSize);
+    DWORD numberOfFunctions = pExportDirectory->NumberOfFunctions;
+    DWORD numberOfNames = pExportDirectory->NumberOfNames;
+    DWORD addressOfFunctions = pExportDirectory->AddressOfFunctions;
+    DWORD addressOfNames = pExportDirectory->AddressOfNames;
+    DWORD addressOfOrdinals = pExportDirectory->AddressOfNameOrdinals;
+    printf("number of functions: %d\n", numberOfFunctions);
+    printf("number of names: %d\n", numberOfNames);
+    printf("address of functions: 0x%04x\n", addressOfFunctions);
+    printf("address of names: 0x%04x\n", addressOfNames);
+    printf("address of ordinals: 0x%04x\n", addressOfOrdinals);
+    //通过函数名称寻找函数
+    //getFunctionByName("plus", pExportDirectory);
 }
 
 int main() {
-    readFile("C:\\Users\\Chou\\Desktop\\Windows On Top.exe");
+//    readFile("C:\\Users\\Chou\\Desktop\\Windows On Top.exe");
+    readFile("C:\\Users\\Chou\\Desktop\\libsharedDLL.dll");
     if (fileBuffer == NULL) {
         exit(1); // 文件读取失败，退出程序
     }
-    printPEHeader();
-    printSectionTable();
+//    printPEHeader();
+//    printSectionTable();
     fileBufferToImageBuffer();
     imageBufferToNewBuffer();
-    DWORD FOA = RVAToFOA(imageBuffer + 0x0001F000);
-    printf("FOA:%08x\n", FOA);
+//    DWORD FOA = RVAToFOA(0x0001F000);
+//    printf("FOA:%08x\n", FOA);
+//    printExportTable();
     free(fileBuffer);
     free(imageBuffer);
     free(newBuffer);

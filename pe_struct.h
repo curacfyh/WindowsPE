@@ -41,6 +41,12 @@ struct _IMAGE_FILE_HEADER {
     WORD Characteristics;  //特征值
 };
 
+//数据目录
+struct _IMAGE_DATA_DIRECTORY {
+    DWORD VirtualAddress;
+    DWORD Size;
+};
+
 //可选PE头
 struct _IMAGE_OPTIONAL_HEADER {
     WORD Magic;  //文件类型
@@ -73,7 +79,7 @@ struct _IMAGE_OPTIONAL_HEADER {
     DWORD SizeOfHeapCommit;  //实际分配堆大小
     DWORD LoaderFlags;
     DWORD NumberOfRvaAndSizes;  //目录项数目
-    //_IMAGE_DATA_DIRECTORY DataDirectory[16];  //这个先不管
+    struct _IMAGE_DATA_DIRECTORY DataDirectory[16];
 };
 
 //NT头
@@ -84,12 +90,12 @@ struct _IMAGE_NT_HEADERS {
 };
 
 //节表
-struct _IMAGE_SECTION_HEADER{
+struct _IMAGE_SECTION_HEADER {
     BYTE Name[8];  //节表名
-    union{
+    union {
         DWORD PhysicalAddress;
         DWORD VirtualSize;  //内存中未对齐大小
-    }Misc;
+    } Misc;
     DWORD VirtualAddress;  //该节在内存中偏移地址
     DWORD SizeOfRawData;  //该节在硬盘上文件对齐后大小
     DWORD PointerToRawData;  //该节在硬盘上文件对齐后偏移地址
@@ -98,6 +104,21 @@ struct _IMAGE_SECTION_HEADER{
     WORD NumberOfRelocations;
     WORD NumberOfLinenumbers;
     DWORD Characteristics;  //该节特征属性
+};
+
+//导出表
+struct _IMAGE_EXPORT_DIRECTORY {   //40字节
+    DWORD Characteristics;  //未使用
+    DWORD TimeDateStamp;  //时间戳
+    WORD MajorVersion;  //未使用
+    WORD MinorVersion;    //未使用
+    DWORD Name;  //指向该导出表文件名字符串  *
+    DWORD Base;  //导出函数起始序号  *
+    DWORD NumberOfFunctions;  //所有导出函数的个数  *
+    DWORD NumberOfNames;  //以函数名字导出的函数个数  *
+    DWORD AddressOfFunctions;  //导出函数地址表RVA  *
+    DWORD AddressOfNames;  //导出函数名称表RVA  *
+    DWORD AddressOfNameOrdinals;  //导出函数序号表RVA  *
 };
 
 #endif //PETOOL_PE_STRUCT_H
