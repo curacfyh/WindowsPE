@@ -121,4 +121,10 @@ struct _IMAGE_EXPORT_DIRECTORY {   //40字节
     DWORD AddressOfNameOrdinals;  //导出函数序号表RVA  *
 };
 
+//重定位表
+struct _IMAGE_BASE_RELOCATION{
+    DWORD VirtualAddress;
+    DWORD SizeOfBlock;
+};
+
 #endif //PETOOL_PE_STRUCT_H

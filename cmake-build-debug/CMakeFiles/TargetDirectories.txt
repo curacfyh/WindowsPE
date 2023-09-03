@@ -1,3 +1,0 @@
-D:/workspace/c/clion/petool/cmake-build-debug/CMakeFiles/petool.dir
-D:/workspace/c/clion/petool/cmake-build-debug/CMakeFiles/edit_cache.dir
-D:/workspace/c/clion/petool/cmake-build-debug/CMakeFiles/rebuild_cache.dir

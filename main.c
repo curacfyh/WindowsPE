@@ -111,7 +111,7 @@ void fileBufferToImageBuffer() {
         return;
     }
     memset(imageBuffer, 0x00, sizeOfImage);
-    //拷贝头和节表 TODO 参考下别人的代码
+    //拷贝头和节表
     memcpy(imageBuffer, fileBuffer, gFileOptionalHeader->SizeOfHeaders);
     //拷贝节区
     WORD numOfSections = gFileFileHeader->NumberOfSections;
@@ -120,8 +120,7 @@ void fileBufferToImageBuffer() {
         //节区起始位置
         BYTE *pFileSection = (BYTE *) fileBuffer + curSectionHeader->PointerToRawData;
         BYTE *pImageSection = (BYTE *) imageBuffer + curSectionHeader->VirtualAddress;
-        DWORD minSize = min(curSectionHeader->Misc.VirtualSize, curSectionHeader->SizeOfRawData);
-        memcpy(pImageSection, pFileSection, minSize);
+        memcpy(pImageSection, pFileSection, curSectionHeader->Misc.VirtualSize);
     }
 }
 
@@ -184,8 +183,8 @@ void implantCodeAtPos(const DWORD sectionIdx, const DWORD offsetInSection) {
     memcpy(newBuffer + gNewDosHeader->e_lfanew + 4 + 20 + 16, &virtualOffset, 4);
 }
 
-//新增节来植入代码
-void implantCodeByNewSection() {
+//新增节区，返回新增节区的节表
+struct _IMAGE_SECTION_HEADER *addNewSection(size_t newSectionSize) {
     struct _IMAGE_SECTION_HEADER *pOldEnd = gNewSectionHeader + gNewFileHeader->NumberOfSections;
     //先拷贝NT头到最后一个节表的内容到新紧挨着DOS头的新位置
     size_t copySize = 0x4 + 0x14 + 0xe0 + gNewFileHeader->NumberOfSections * 0x28;
@@ -206,8 +205,10 @@ void implantCodeByNewSection() {
     //拷贝第一个节表来新增节表
     memcpy(pNewEnd, gNewSectionHeader, 40);
     //扩大一个文件对齐的大小，用作注入代码，即在末尾新增节区
-    newBufferSize += gNewOptionalHeader->FileAlignment;
+    size_t expandSize = newSectionSize == 0 ? gNewOptionalHeader->FileAlignment : newSectionSize;
+    newBufferSize += expandSize;
     newBuffer = realloc(newBuffer, newBufferSize);
+    memset(newBuffer + (newBufferSize - expandSize), 0, expandSize);
     if (newBuffer == NULL) {
         printf("Memory reallocation failed.\n");
         exit(1);
@@ -221,14 +222,20 @@ void implantCodeByNewSection() {
     // 大小1是为了占位，如果是0，这个节区在内存中不存在
     pAddedSectionHeader->Misc.VirtualSize = 1;
     pAddedSectionHeader->VirtualAddress = gNewOptionalHeader->SizeOfImage;
-    pAddedSectionHeader->SizeOfRawData = gNewOptionalHeader->FileAlignment;
+    pAddedSectionHeader->SizeOfRawData = expandSize;
     pAddedSectionHeader->PointerToRawData = pLastSectionHeader->PointerToRawData + pLastSectionHeader->SizeOfRawData;
     //修改sizeOfImage。这里只是增加了一个内存对齐大小的节区，如果节区超过一个对齐大小，要先对齐再加
     gNewOptionalHeader->SizeOfImage += gNewOptionalHeader->SectionAlignment;
-    //在新节区植入代码
-    implantCodeAtPos(gNewFileHeader->NumberOfSections, 1);
     //修改节表数目
     gNewFileHeader->NumberOfSections += 1;
+    return pAddedSectionHeader;
+}
+
+//新增节来植入代码
+void implantCodeByNewSection() {
+    addNewSection(0);
+    //在新节区植入代码
+    implantCodeAtPos(gNewFileHeader->NumberOfSections, 1);
 }
 
 //合并所有节为一个节 TODO 导入表有问题，不知道为什么
@@ -254,7 +261,8 @@ void mergeAllSectionsToOne() {
 }
 
 void writeFile(DWORD bufferSize) {
-    FILE *outFile = fopen("C:\\Users\\Chou\\Desktop\\libsharedDLL.dll", "wb");
+    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\sharedDLL_new.dll", "wb");
+//    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\Windows On Top_new.exe", "wb");
     if (outFile == NULL) {
         printf("Failed to open file.\n");
         exit(1);
@@ -269,12 +277,7 @@ void writeFile(DWORD bufferSize) {
 //newBuffer为新的fileBuffer
 void imageBufferToNewBuffer() {
     initialImageHeader();
-    //计算newBuffer大小，公式为SizeOfHeaders按fileAlignment对齐+各节区的SizeOfRawData
-    //还有更简便的，最后一个节区的PointerToRawData + SizeOfRawData就是整个PE文件的大小。这种暂时不做
-    //将SizeOfHeaders按fileAlignment对齐
-    DWORD sizeOfHeaders = gImageOptionalHeader->SizeOfHeaders;
-    DWORD fileAlignment = gImageOptionalHeader->FileAlignment;
-    newBufferSize = (sizeOfHeaders + fileAlignment - 1) & ~(fileAlignment - 1);
+    newBufferSize = gImageOptionalHeader->SizeOfHeaders;
     for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
         newBufferSize += (gImageSectionHeader + i)->SizeOfRawData;
     }
@@ -284,7 +287,7 @@ void imageBufferToNewBuffer() {
         return;
     }
     memset(newBuffer, 0x00, newBufferSize);
-    memcpy(newBuffer, imageBuffer, sizeOfHeaders);
+    memcpy(newBuffer, imageBuffer, gImageOptionalHeader->SizeOfHeaders);
     for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
         const struct _IMAGE_SECTION_HEADER *curSectionHeader = gImageSectionHeader + i;
         BYTE *pImageSection = (BYTE *) imageBuffer + curSectionHeader->VirtualAddress;
@@ -295,7 +298,6 @@ void imageBufferToNewBuffer() {
 //    implantCode();
 //    implantCodeByNewSection();
 //    mergeAllSectionsToOne();
-//    writeFile(newBufferSize);
 }
 
 //节区中虚拟内存偏移地址转文件偏移地址，不考虑VirtualSize比SizeOfRawData大的情况
@@ -307,7 +309,7 @@ DWORD RVAToFOA(const DWORD RVA) {
     for (int i = 0; i < gImageFileHeader->NumberOfSections; ++i) {
         const struct _IMAGE_SECTION_HEADER *pSectionTable = gImageSectionHeader + i;
         if (RVA >= pSectionTable->VirtualAddress &&
-            RVA <= pSectionTable->VirtualAddress + pSectionTable->Misc.VirtualSize) {
+            RVA < pSectionTable->VirtualAddress + pSectionTable->Misc.VirtualSize) {
             sectionIndex = i;
             offset = RVA - pSectionTable->VirtualAddress;
             break;
@@ -319,15 +321,36 @@ DWORD RVAToFOA(const DWORD RVA) {
     return (gFileSectionHeader + sectionIndex)->PointerToRawData + offset;
 }
 
+//节区中文件偏移地址转虚拟内存偏移地址，不考虑VirtualSize比SizeOfRawData大的情况
+DWORD FOAToRVA(const DWORD FOA) {
+    //第几个节区
+    int sectionIndex = -1;
+    //节区起始位置的偏移
+    DWORD offset = -1;
+    for (int i = 0; i < gNewFileHeader->NumberOfSections; ++i) {
+        const struct _IMAGE_SECTION_HEADER *pSectionTable = gNewSectionHeader + i;
+        if (FOA >= pSectionTable->PointerToRawData &&
+            FOA < pSectionTable->PointerToRawData + pSectionTable->SizeOfRawData) {
+            sectionIndex = i;
+            offset = FOA - pSectionTable->PointerToRawData;
+            break;
+        }
+    }
+    if (sectionIndex == -1 || offset == -1) {
+        printf("FOA is not legal!\n");
+    }
+    return (gNewSectionHeader + sectionIndex)->VirtualAddress + offset;
+}
+
 DWORD getFunctionByName(const char *name, const struct _IMAGE_EXPORT_DIRECTORY *pExportDirectory) {
     DWORD addressOfNamesFOA = RVAToFOA(pExportDirectory->AddressOfNames);
     DWORD numberOfNames = pExportDirectory->NumberOfNames;
     DWORD AddressOfNameOrdinalsFOA = RVAToFOA(pExportDirectory->AddressOfNameOrdinals);
     DWORD AddressOfFunctionsFOA = RVAToFOA(pExportDirectory->AddressOfFunctions);
     DWORD ordinalOffset = -1;
+    DWORD *ppName = (DWORD *) (fileBuffer + addressOfNamesFOA);
     for (int i = 0; i < numberOfNames; ++i) {
-        DWORD *ppName = (DWORD *) (fileBuffer + addressOfNamesFOA);
-        char *pName = (char *) *ppName;
+        char *pName = (char *) (fileBuffer + RVAToFOA(*(ppName + i)));
         if (strcmp(pName, name) == 0) {
             ordinalOffset = i;
             continue;
@@ -340,7 +363,14 @@ DWORD getFunctionByName(const char *name, const struct _IMAGE_EXPORT_DIRECTORY *
     WORD *pOrdinal = (WORD *) (fileBuffer + AddressOfNameOrdinalsFOA);
     WORD functionOrdinal = *(pOrdinal + ordinalOffset);
     DWORD *pFunction = (DWORD *) (fileBuffer + AddressOfFunctionsFOA) + functionOrdinal;
-    printf("function: ", *pFunction);
+    DWORD functionRVA = *pFunction;
+    printf("function RVA: %d\n", functionRVA);
+    return functionRVA;
+}
+
+DWORD getFunctionByOrdinal(const DWORD ordinal, const struct _IMAGE_EXPORT_DIRECTORY *pExportDirectory) {
+    DWORD AddressOfFunctionsFOA = RVAToFOA(pExportDirectory->AddressOfFunctions);
+    DWORD *pFunction = (DWORD *) (fileBuffer + AddressOfFunctionsFOA) + (ordinal - pExportDirectory->Base);
     return *pFunction;
 }
 
@@ -363,12 +393,94 @@ void printExportTable() {
     printf("address of names: 0x%04x\n", addressOfNames);
     printf("address of ordinals: 0x%04x\n", addressOfOrdinals);
     //通过函数名称寻找函数
-    //getFunctionByName("plus", pExportDirectory);
+    DWORD functionFOAByName = RVAToFOA(getFunctionByName("myPlus", pExportDirectory));
+    printf("function FOA by name: %d\n", functionFOAByName);
+    //通过序号找函数
+    DWORD functionFOAByOrdinal = RVAToFOA(getFunctionByOrdinal(5, pExportDirectory));
+    printf("function FOA by ordinal: %d\n", functionFOAByOrdinal);
+}
+
+//打印重定位表
+void printBaseRelocTable() {
+    DWORD FOA = RVAToFOA(gFileOptionalHeader->DataDirectory[5].VirtualAddress);
+    struct _IMAGE_BASE_RELOCATION *pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) (fileBuffer + FOA);
+    int n = 1;
+    while (pBaseRelocation->VirtualAddress != 0 && pBaseRelocation->SizeOfBlock != 0) {
+        WORD *pEntry = (WORD *) (pBaseRelocation + 1);
+        DWORD entryCount = (pBaseRelocation->SizeOfBlock - 8) / 2;
+        printf("relocation table %d's RVA:\n", n++);
+        for (int i = 0; i < entryCount; ++i) {
+            WORD entry = pEntry[i];
+            if ((entry & 0xF000) != (3 << 12)) continue;
+            int relocEntry = entry & 0x0FFF;
+            DWORD relocRVA = pBaseRelocation->VirtualAddress + relocEntry;
+            printf("%08x\n", relocRVA);
+        }
+        pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) ((BYTE *) pBaseRelocation + pBaseRelocation->SizeOfBlock);
+    }
+}
+
+//移动导出表
+void moveExportTable() {
+    int newSectionSize = 0x1000;
+    struct _IMAGE_SECTION_HEADER *pNewSectionHeader = addNewSection(newSectionSize);
+    DWORD exportTableFOA = RVAToFOA(gNewOptionalHeader->DataDirectory[0].VirtualAddress);
+    struct _IMAGE_EXPORT_DIRECTORY *pExportTable = (struct _IMAGE_EXPORT_DIRECTORY *) (newBuffer + exportTableFOA);
+    DWORD numberOfFunctions = pExportTable->NumberOfFunctions;
+    DWORD numberOfNames = pExportTable->NumberOfNames;
+    DWORD addressOfFunctions = pExportTable->AddressOfFunctions;
+    DWORD addressOfNames = pExportTable->AddressOfNames;
+    DWORD addressOfOrdinals = pExportTable->AddressOfNameOrdinals;
+    size_t sizeOfData = 0;
+    //开始依次拷贝函数、序号、名字等表，并更新导出表的3个地址
+    BYTE *newSecStartCopyPos = newBuffer + pNewSectionHeader->PointerToRawData;
+    memcpy(newSecStartCopyPos, newBuffer + RVAToFOA(addressOfFunctions), numberOfFunctions * 4);
+    sizeOfData += numberOfFunctions * 4;
+    pExportTable->AddressOfFunctions = FOAToRVA(newSecStartCopyPos - newBuffer);
+    newSecStartCopyPos += numberOfFunctions * 4;
+    memcpy(newSecStartCopyPos, newBuffer + RVAToFOA(addressOfOrdinals), numberOfNames * 2);
+    sizeOfData += numberOfNames * 2;
+    pExportTable->AddressOfNameOrdinals = FOAToRVA(newSecStartCopyPos - newBuffer);
+    newSecStartCopyPos += numberOfNames * 2;
+    BYTE *ppNamesInByte = newBuffer + RVAToFOA(addressOfNames);
+    memcpy(newSecStartCopyPos, ppNamesInByte, numberOfNames * 4);
+    sizeOfData += numberOfNames * 4;
+    pExportTable->AddressOfNames = FOAToRVA(newSecStartCopyPos - newBuffer);
+    newSecStartCopyPos += numberOfNames * 4;
+    //开始遍历拷贝名字
+    DWORD *ppNameInDWord = (DWORD *) ppNamesInByte;
+    for (int i = 0; i < numberOfNames; ++i) {
+        DWORD *prePpNameInDWord = ppNameInDWord++;
+        BYTE *preCopyPos = newSecStartCopyPos;
+        strcpy((char *) newSecStartCopyPos, (const char *) ppNameInDWord);
+        size_t copiedLen = strlen((const char *) ppNameInDWord) + 1;
+        sizeOfData += copiedLen;
+        newSecStartCopyPos += copiedLen;
+        //更新名字表的RVA
+        *prePpNameInDWord = FOAToRVA((preCopyPos - newBuffer));
+    }
+    //开始拷贝导出表
+    memcpy(newSecStartCopyPos, pExportTable, 0x28);
+    sizeOfData += 0x28;
+    //更新目录表种导出表的RVA
+    gNewOptionalHeader->DataDirectory[0].VirtualAddress = FOAToRVA(newSecStartCopyPos - newBuffer);
+    //更新最后一个节表内容
+    pNewSectionHeader->SizeOfRawData = align(newSectionSize, gNewOptionalHeader->FileAlignment);
+    pNewSectionHeader->Misc.VirtualSize = sizeOfData;
+}
+
+//移动重定位表
+void moveRelocTable() {
+    DWORD FOA = RVAToFOA(gNewOptionalHeader->DataDirectory[5].VirtualAddress);
+    struct _IMAGE_BASE_RELOCATION *pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) (newBuffer + FOA);
+    while (pBaseRelocation->VirtualAddress != 0 && pBaseRelocation->SizeOfBlock != 0) {
+
+    }
 }
 
 int main() {
-//    readFile("C:\\Users\\Chou\\Desktop\\Windows On Top.exe");
-    readFile("C:\\Users\\Chou\\Desktop\\libsharedDLL.dll");
+//    readFile("C:\\Users\\Administrator\\Desktop\\Windows On Top.exe");
+    readFile("C:\\Users\\Administrator\\Desktop\\sharedDLL.dll");
     if (fileBuffer == NULL) {
         exit(1); // 文件读取失败，退出程序
     }
@@ -376,9 +488,13 @@ int main() {
 //    printSectionTable();
     fileBufferToImageBuffer();
     imageBufferToNewBuffer();
+    printBaseRelocTable();
 //    DWORD FOA = RVAToFOA(0x0001F000);
 //    printf("FOA:%08x\n", FOA);
-//    printExportTable();
+    printExportTable();
+//    moveExportTable();
+    moveRelocTable();
+    writeFile(newBufferSize);
     free(fileBuffer);
     free(imageBuffer);
     free(newBuffer);
