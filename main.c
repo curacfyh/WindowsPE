@@ -462,7 +462,7 @@ void moveExportTable() {
     //开始拷贝导出表
     memcpy(newSecStartCopyPos, pExportTable, 0x28);
     sizeOfData += 0x28;
-    //更新目录表种导出表的RVA
+    //更新目录表中导出表的RVA
     gNewOptionalHeader->DataDirectory[0].VirtualAddress = FOAToRVA(newSecStartCopyPos - newBuffer);
     //更新最后一个节表内容
     pNewSectionHeader->SizeOfRawData = align(newSectionSize, gNewOptionalHeader->FileAlignment);
@@ -471,10 +471,41 @@ void moveExportTable() {
 
 //移动重定位表
 void moveRelocTable() {
+    int newSectionSize = 0x1000;
+    struct _IMAGE_SECTION_HEADER *pNewSectionHeader = addNewSection(newSectionSize);
+    DWORD FOA = RVAToFOA(gNewOptionalHeader->DataDirectory[5].VirtualAddress);
+    struct _IMAGE_BASE_RELOCATION *pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) (newBuffer + FOA);
+    BYTE *newSecStartCopyPos = newBuffer + pNewSectionHeader->PointerToRawData;
+    size_t sizeOfData = 0;
+    while (pBaseRelocation->VirtualAddress != 0 && pBaseRelocation->SizeOfBlock != 0) {
+        memcpy(newSecStartCopyPos, pBaseRelocation, pBaseRelocation->SizeOfBlock);
+        newSecStartCopyPos += pBaseRelocation->SizeOfBlock;
+        sizeOfData += pBaseRelocation->SizeOfBlock;
+        pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) ((BYTE *) pBaseRelocation + pBaseRelocation->SizeOfBlock);
+    }
+    //结束标记虽然为0，但也是占位的
+    sizeOfData += 8;
+    //更新目录表中重定位表的RVA
+    gNewOptionalHeader->DataDirectory[5].VirtualAddress = FOAToRVA(pNewSectionHeader->PointerToRawData);
+    //更新最后一个节表内容
+    pNewSectionHeader->SizeOfRawData = align(newSectionSize, gNewOptionalHeader->FileAlignment);
+    pNewSectionHeader->Misc.VirtualSize = sizeOfData;
+}
+
+//修改ImageBase，增加0x10000000，一般就是从0x10000000变成0x20000000，然后用下列函数修复重定位表
+void repairRelocation() {
+    gNewOptionalHeader->ImageBase += 0x10000000;
     DWORD FOA = RVAToFOA(gNewOptionalHeader->DataDirectory[5].VirtualAddress);
     struct _IMAGE_BASE_RELOCATION *pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) (newBuffer + FOA);
     while (pBaseRelocation->VirtualAddress != 0 && pBaseRelocation->SizeOfBlock != 0) {
-
+        WORD *ppEntryOffset = (WORD *) (pBaseRelocation + 1);
+        for (int i = 0; i < (pBaseRelocation->SizeOfBlock - 8) / 2; ++i) {
+            if ((ppEntryOffset[i] & 0xF000) != (3 << 12)) continue;
+            DWORD pEntryRVA = pBaseRelocation->VirtualAddress + (ppEntryOffset[i] & 0x0FFF);
+            DWORD *pEntry = (DWORD *) (newBuffer + RVAToFOA(pEntryRVA));
+            *pEntry += 0x10000000;
+        }
+        pBaseRelocation = (struct _IMAGE_BASE_RELOCATION *) ((BYTE *) pBaseRelocation + pBaseRelocation->SizeOfBlock);
     }
 }
 
@@ -493,7 +524,8 @@ int main() {
 //    printf("FOA:%08x\n", FOA);
     printExportTable();
 //    moveExportTable();
-    moveRelocTable();
+//    moveRelocTable();
+    repairRelocation();
     writeFile(newBufferSize);
     free(fileBuffer);
     free(imageBuffer);
