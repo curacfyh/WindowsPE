@@ -261,8 +261,8 @@ void mergeAllSectionsToOne() {
 }
 
 void writeFile(DWORD bufferSize) {
-    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\sharedDLL_new.dll", "wb");
-//    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\Windows On Top_new.exe", "wb");
+//    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\sharedDLL_new.dll", "wb");
+    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\Windows On Top_new.exe", "wb");
     if (outFile == NULL) {
         printf("Failed to open file.\n");
         exit(1);
@@ -420,6 +420,38 @@ void printBaseRelocTable() {
     }
 }
 
+//打印导入表
+void printImportTable() {
+    struct _IMAGE_IMPORT_DESCRIPTOR *pImportTable = (struct _IMAGE_IMPORT_DESCRIPTOR *) (fileBuffer + RVAToFOA(
+            gNewOptionalHeader->DataDirectory[1].VirtualAddress));
+    struct _IMAGE_IMPORT_DESCRIPTOR zeroDesc = {0};
+    while (memcmp(pImportTable, &zeroDesc, sizeof(struct _IMAGE_IMPORT_DESCRIPTOR)) != 0) {
+        BYTE *pName = fileBuffer + RVAToFOA(pImportTable->Name);
+        printf("Import table's DLL name: %s\n", pName);
+        struct _IMAGE_THUNK_DATA32 *pOriginalThunk = (struct _IMAGE_THUNK_DATA32 *) (fileBuffer + RVAToFOA(
+                pImportTable->OriginalFirstThunk));
+        while (pOriginalThunk->Function != 0) {
+            printf("Original First Thunk: %04x\n", pOriginalThunk->Function);
+            pOriginalThunk++;
+        }
+        struct _IMAGE_THUNK_DATA32 *pFirstThunk = (struct _IMAGE_THUNK_DATA32 *) (fileBuffer + RVAToFOA(
+                pImportTable->FirstThunk));
+        while (pFirstThunk->Function != 0) {
+            if ((pFirstThunk->Function >> 31) == 0x1) {
+                DWORD ordinal = pFirstThunk->Function & 0x7FFFFFFF;
+                printf("ordinal: %04x\n", ordinal);
+            } else {
+                struct _IMAGE_IMPORT_BY_NAME *pImportByName = (struct _IMAGE_IMPORT_BY_NAME *) (fileBuffer + RVAToFOA(
+                        pFirstThunk->Function));
+                printf("import by name: %s\n", pImportByName->Name);
+            }
+            pFirstThunk++;
+        }
+        printf("------------------------------\n");
+        pImportTable++;
+    }
+}
+
 //移动导出表
 void moveExportTable() {
     int newSectionSize = 0x1000;
@@ -510,8 +542,8 @@ void repairRelocation() {
 }
 
 int main() {
-//    readFile("C:\\Users\\Administrator\\Desktop\\Windows On Top.exe");
-    readFile("C:\\Users\\Administrator\\Desktop\\sharedDLL.dll");
+    readFile("C:\\Users\\Administrator\\Desktop\\Windows On Top.exe");
+//    readFile("C:\\Users\\Administrator\\Desktop\\sharedDLL.dll");
     if (fileBuffer == NULL) {
         exit(1); // 文件读取失败，退出程序
     }
@@ -519,13 +551,14 @@ int main() {
 //    printSectionTable();
     fileBufferToImageBuffer();
     imageBufferToNewBuffer();
-    printBaseRelocTable();
+//    printBaseRelocTable();
 //    DWORD FOA = RVAToFOA(0x0001F000);
 //    printf("FOA:%08x\n", FOA);
-    printExportTable();
+//    printExportTable();
 //    moveExportTable();
 //    moveRelocTable();
-    repairRelocation();
+//    repairRelocation();
+    printImportTable();
     writeFile(newBufferSize);
     free(fileBuffer);
     free(imageBuffer);

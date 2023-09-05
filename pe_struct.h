@@ -122,9 +122,36 @@ struct _IMAGE_EXPORT_DIRECTORY {   //40字节
 };
 
 //重定位表
-struct _IMAGE_BASE_RELOCATION{
+struct _IMAGE_BASE_RELOCATION {
     DWORD VirtualAddress;
     DWORD SizeOfBlock;
+};
+
+//导入表，有很多个这种结构（成员全为0，表示结束）
+struct _IMAGE_IMPORT_DESCRIPTOR {
+    union {
+        DWORD Characteristics;
+        DWORD OriginalFirstThunk;  //RVA，指向IMAGE_THUNK_DATA结构数组（INT表）
+    };
+    DWORD TimeDateStamp;  //时间戳	（用于判断是否有绑定导入表/IAT表中是否已经绑定绝对地址）
+    DWORD ForwarderChain;
+    DWORD Name;  //RVA，指向dll名字字符串存储地址
+    DWORD FirstThunk;  //RVA,指向IMAGE_THUNK_DATA结构数组（IAT表）
+};
+
+//INT表和运行前IAT表
+struct _IMAGE_THUNK_DATA32 {
+    union {
+        BYTE ForwarderString;
+        DWORD Function;
+        DWORD Ordinal;  //序号
+        struct _IMAGE_IMPORT_BY_NAME *AddressOfData;  //RVA，指向IMAGE_IMPORT_BY_NAME
+    };
+};
+
+struct _IMAGE_IMPORT_BY_NAME {
+    WORD Hint;  //可能为空（编译器决定）；如果不为空，表示函数在导出表中的索引
+    BYTE Name[1];  //函数名称，以0结尾
 };
 
 #endif //PETOOL_PE_STRUCT_H
