@@ -154,4 +154,16 @@ struct _IMAGE_IMPORT_BY_NAME {
     BYTE Name[1];  //函数名称，以0结尾
 };
 
+struct _IMAGE_BOUND_IMPORT_DESCRIPTOR{
+    DWORD TimeDateStamp;  //时间戳
+    WORD OffsetModuleName;	//DLL的名字RVA（加第一个结构中RVA才是字符串真正RVA，详见下面）
+    WORD NumberOfModuleForwarderRefs;  //这个绑定导入表结构后面还有几个_IMAGE_BOUND_FORWARDER_REF这种结构
+};  //绑定导入表有很多这种结构或者_IMAGE_BOUND_FORWARDER_REF这种结构，最后如果有sizeof(_IMAGE_BOUND_IMPORT_DESCRIPTOR)个0，表示绑定导入表结束
+
+struct _IMAGE_BOUND_FORWARDER_REF {
+    DWORD TimeDateStamp;  //时间戳
+    WORD OffsetModuleName;  //对应DLL的名字
+    WORD Reserved;  //保留（未使用）
+};
+
 #endif //PETOOL_PE_STRUCT_H

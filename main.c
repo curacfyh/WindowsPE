@@ -452,6 +452,24 @@ void printImportTable() {
     }
 }
 
+//打印绑定导入表
+void printBoundImportTable() {
+    struct _IMAGE_BOUND_IMPORT_DESCRIPTOR *pBoundImportDescriptor = (struct _IMAGE_BOUND_IMPORT_DESCRIPTOR *) (
+            fileBuffer + RVAToFOA(gNewOptionalHeader->DataDirectory[11].VirtualAddress));
+    struct _IMAGE_BOUND_IMPORT_DESCRIPTOR zeroDesc = {0};
+    while (memcmp(pBoundImportDescriptor, &zeroDesc, sizeof(struct _IMAGE_BOUND_IMPORT_DESCRIPTOR)) != 0) {
+        printf("BOUND_IMPORT OffsetModuleName: %s\n", fileBuffer + pBoundImportDescriptor->OffsetModuleName);
+        printf("BOUND_IMPORT TimeDateStamp: %04x\n", pBoundImportDescriptor->TimeDateStamp);
+        struct _IMAGE_BOUND_FORWARDER_REF *pBF = (struct _IMAGE_BOUND_FORWARDER_REF *) (pBoundImportDescriptor + 1);
+        for (int i = 0; i < pBoundImportDescriptor->NumberOfModuleForwarderRefs; ++i) {
+            printf("BOUND_FORWARDER OffsetModuleName: %s\n", fileBuffer + pBF[i].OffsetModuleName);
+            printf("BOUND_FORWARDER TimeDateStamp: %04x\n", pBF[i].TimeDateStamp);
+        }
+        printf("---------------------");
+        pBoundImportDescriptor += 1 + pBoundImportDescriptor->NumberOfModuleForwarderRefs;
+    }
+}
+
 //移动导出表
 void moveExportTable() {
     int newSectionSize = 0x1000;
@@ -558,7 +576,8 @@ int main() {
 //    moveExportTable();
 //    moveRelocTable();
 //    repairRelocation();
-    printImportTable();
+//    printImportTable();
+    printBoundImportTable();
     writeFile(newBufferSize);
     free(fileBuffer);
     free(imageBuffer);
