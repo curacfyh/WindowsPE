@@ -262,7 +262,7 @@ void mergeAllSectionsToOne() {
 
 void writeFile(DWORD bufferSize) {
 //    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\sharedDLL_new.dll", "wb");
-    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\Windows On Top_new.exe", "wb");
+    FILE *outFile = fopen("C:\\Users\\Administrator\\Desktop\\IPMSG2007_new.exe", "wb");
     if (outFile == NULL) {
         printf("Failed to open file.\n");
         exit(1);
@@ -454,6 +454,7 @@ void printImportTable() {
 
 //打印绑定导入表
 void printBoundImportTable() {
+    //注意，这里的VirtualAddress也可能是在头里面的空闲空间里的，而不是在节区，如果用正常的转FOA的方法就会出错，这种是不需要转的
     struct _IMAGE_BOUND_IMPORT_DESCRIPTOR *pBoundImportDescriptor = (struct _IMAGE_BOUND_IMPORT_DESCRIPTOR *) (
             fileBuffer + RVAToFOA(gNewOptionalHeader->DataDirectory[11].VirtualAddress));
     struct _IMAGE_BOUND_IMPORT_DESCRIPTOR zeroDesc = {0};
@@ -559,8 +560,71 @@ void repairRelocation() {
     }
 }
 
+//导入表注入 TODO 有错误，找不到原因，以后再说吧，来不及了
+void injectDLLByImportTable() {
+    int newSectionSize = 0x1000;
+    struct _IMAGE_SECTION_HEADER *pNewSectionHeader = addNewSection(newSectionSize);
+    struct _IMAGE_IMPORT_DESCRIPTOR *pImportTable = (struct _IMAGE_IMPORT_DESCRIPTOR *) (newBuffer + RVAToFOA(
+            gNewOptionalHeader->DataDirectory[1].VirtualAddress));
+    BYTE *newSecStartCopyPos = newBuffer + pNewSectionHeader->PointerToRawData;
+    size_t sizeOfData = 0;
+    size_t sizeOfOriginalData = 0;
+    struct _IMAGE_IMPORT_DESCRIPTOR zeroDesc = {0};
+    //拷贝导入表主表
+    while (memcmp(pImportTable, &zeroDesc, sizeof(struct _IMAGE_IMPORT_DESCRIPTOR)) != 0) {
+        memcpy(newSecStartCopyPos, pImportTable, sizeof(struct _IMAGE_IMPORT_DESCRIPTOR));
+        newSecStartCopyPos += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR);
+        sizeOfData += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR);
+        sizeOfOriginalData += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR);
+        pImportTable++;
+    }
+    sizeOfOriginalData += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR);
+    //增加注入的导入表，并增加一个全0的导入表作为结尾
+    struct _IMAGE_IMPORT_DESCRIPTOR *injectImportTable = (struct _IMAGE_IMPORT_DESCRIPTOR *) newSecStartCopyPos;
+    newSecStartCopyPos += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR) * 2;
+    sizeOfData += sizeof(struct _IMAGE_IMPORT_DESCRIPTOR) * 2;
+    //增加DLL名字
+    const char *dllName = "injectDLL.dll";
+    strcpy((char *) newSecStartCopyPos, dllName);
+    (*injectImportTable).Name = FOAToRVA(newSecStartCopyPos - newBuffer);
+    size_t dllNameLen = strlen(dllName) + 1;
+    newSecStartCopyPos += dllNameLen;
+    sizeOfData += dllNameLen;
+    //增加注入的INT表，跳过结束的INT空表
+    struct _IMAGE_THUNK_DATA32 *injectINT = (struct _IMAGE_THUNK_DATA32 *) newSecStartCopyPos;
+    (*injectImportTable).OriginalFirstThunk = FOAToRVA(newSecStartCopyPos - newBuffer);
+    newSecStartCopyPos += sizeof(struct _IMAGE_THUNK_DATA32) * 2;
+    sizeOfData += sizeof(struct _IMAGE_THUNK_DATA32) * 2;
+    //增加注入的IAT表，跳过结束的INT空表
+    struct _IMAGE_THUNK_DATA32 *injectIAT = (struct _IMAGE_THUNK_DATA32 *) newSecStartCopyPos;
+    (*injectImportTable).FirstThunk = FOAToRVA(newSecStartCopyPos - newBuffer);
+    newSecStartCopyPos += sizeof(struct _IMAGE_THUNK_DATA32) * 2;
+    sizeOfData += sizeof(struct _IMAGE_THUNK_DATA32) * 2;
+    //增加名字表，跳过结束的名字空表
+    struct _IMAGE_IMPORT_BY_NAME *pInjectNameTable = (struct _IMAGE_IMPORT_BY_NAME *) newSecStartCopyPos;
+    char *pFuncName = "myFunction";
+    size_t funcNameLen = strlen(pFuncName) + 1;
+    strcpy((char *) (*pInjectNameTable).Name, pFuncName);
+    sizeOfData += (2 + funcNameLen) + sizeof(struct _IMAGE_IMPORT_BY_NAME);
+    //修改注入的INT、IAT表
+    //以名字导出
+    DWORD nameRVA = FOAToRVA((BYTE *) pInjectNameTable - newBuffer);
+    (*injectINT).Function = nameRVA;
+    (*injectIAT).Function = nameRVA;
+    //以序号导出，这里函数导出序号是1
+//    int ordinal = 1;
+//    (*injectINT).Ordinal = 0x80000000 | ordinal;
+//    (*injectIAT).Ordinal = 0x80000000 | ordinal;
+    //更新目录表中重定位表的RVA
+    gNewOptionalHeader->DataDirectory[1].VirtualAddress = FOAToRVA(pNewSectionHeader->PointerToRawData);
+    gNewOptionalHeader->DataDirectory[1].Size += sizeOfOriginalData + 20;
+    //更新最后一个节表内容
+    pNewSectionHeader->SizeOfRawData = align(newSectionSize, gNewOptionalHeader->FileAlignment);
+    pNewSectionHeader->Misc.VirtualSize = sizeOfData;
+}
+
 int main() {
-    readFile("C:\\Users\\Administrator\\Desktop\\Windows On Top.exe");
+    readFile("C:\\Users\\Administrator\\Desktop\\IPMSG2007.exe");
 //    readFile("C:\\Users\\Administrator\\Desktop\\sharedDLL.dll");
     if (fileBuffer == NULL) {
         exit(1); // 文件读取失败，退出程序
@@ -577,7 +641,8 @@ int main() {
 //    moveRelocTable();
 //    repairRelocation();
 //    printImportTable();
-    printBoundImportTable();
+//    printBoundImportTable();
+    injectDLLByImportTable();
     writeFile(newBufferSize);
     free(fileBuffer);
     free(imageBuffer);
