@@ -9,7 +9,7 @@ typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
 struct _IMAGE_DOS_HEADER {
-    WORD e_magic;  //MZæ ‡è®°
+    WORD e_magic;  //MZ±ê¼Ç
     WORD e_cblp;
     WORD e_cp;
     WORD e_crlc;
@@ -27,40 +27,40 @@ struct _IMAGE_DOS_HEADER {
     WORD e_oemid;
     WORD e_oeminfo;
     WORD e_res2[10];
-    DWORD e_lfanew;  //PEæ–‡ä»¶çœŸæ­£å¼€å§‹çš„åç§»åœ°å€
+    DWORD e_lfanew;  //PEÎÄ¼şÕæÕı¿ªÊ¼µÄÆ«ÒÆµØÖ·
 };
 
-//æ ‡å‡†PEå¤´
+//±ê×¼PEÍ·
 struct _IMAGE_FILE_HEADER {
-    WORD Machine;  //æ–‡ä»¶è¿è¡Œå¹³å°
-    WORD NumberOfSections;  //èŠ‚æ•°é‡
-    DWORD TimeDateStamp;  //æ—¶é—´æˆ³
+    WORD Machine;  //ÎÄ¼şÔËĞĞÆ½Ì¨
+    WORD NumberOfSections;  //½ÚÊıÁ¿
+    DWORD TimeDateStamp;  //Ê±¼ä´Á
     DWORD PointerToSymbolTable;
     DWORD NumberOfSymbols;
-    WORD SizeOfOptionalHeader;  //å¯é€‰PEå¤´å¤§å°
-    WORD Characteristics;  //ç‰¹å¾å€¼
+    WORD SizeOfOptionalHeader;  //¿ÉÑ¡PEÍ·´óĞ¡
+    WORD Characteristics;  //ÌØÕ÷Öµ
 };
 
-//æ•°æ®ç›®å½•
+//Êı¾İÄ¿Â¼
 struct _IMAGE_DATA_DIRECTORY {
     DWORD VirtualAddress;
     DWORD Size;
 };
 
-//å¯é€‰PEå¤´
+//¿ÉÑ¡PEÍ·
 struct _IMAGE_OPTIONAL_HEADER {
-    WORD Magic;  //æ–‡ä»¶ç±»å‹
+    WORD Magic;  //ÎÄ¼şÀàĞÍ
     BYTE MajorLinkerVersion;
     BYTE MinorLinkerVersion;
-    DWORD SizeOfCode;   //ä»£ç èŠ‚æ–‡ä»¶å¯¹é½åçš„å¤§å°
-    DWORD SizeOfInitializedData;  //åˆå§‹åŒ–æ•°æ®æ–‡ä»¶å¯¹é½åçš„å¤§å°
-    DWORD SizeOfUninitializedData;  //æœªåˆå§‹åŒ–æ•°æ®æ–‡ä»¶å¯¹é½åå¤§å°
-    DWORD AddressOfEntryPoint;  //ç¨‹åºå…¥å£ç‚¹ï¼ˆåç§»é‡ï¼‰
-    DWORD BaseOfCode;  //ä»£ç åŸºå€
-    DWORD BaseOfData;  //æ•°æ®åŸºå€
-    DWORD ImageBase;   //å†…å­˜é•œåƒåŸºå€
-    DWORD SectionAlignment;  //å†…å­˜å¯¹é½ç²’åº¦
-    DWORD FileAlignment;  //æ–‡ä»¶å¯¹é½ç²’åº¦
+    DWORD SizeOfCode;   //´úÂë½ÚÎÄ¼ş¶ÔÆëºóµÄ´óĞ¡
+    DWORD SizeOfInitializedData;  //³õÊ¼»¯Êı¾İÎÄ¼ş¶ÔÆëºóµÄ´óĞ¡
+    DWORD SizeOfUninitializedData;  //Î´³õÊ¼»¯Êı¾İÎÄ¼ş¶ÔÆëºó´óĞ¡
+    DWORD AddressOfEntryPoint;  //³ÌĞòÈë¿Úµã£¨Æ«ÒÆÁ¿£©
+    DWORD BaseOfCode;  //´úÂë»ùÖ·
+    DWORD BaseOfData;  //Êı¾İ»ùÖ·
+    DWORD ImageBase;   //ÄÚ´æ¾µÏñ»ùÖ·
+    DWORD SectionAlignment;  //ÄÚ´æ¶ÔÆëÁ£¶È
+    DWORD FileAlignment;  //ÎÄ¼ş¶ÔÆëÁ£¶È
     WORD MajorOperatingSystemVersion;
     WORD MinorOperatingSystemVersion;
     WORD MajorImageVersion;
@@ -68,102 +68,137 @@ struct _IMAGE_OPTIONAL_HEADER {
     WORD MajorSubsystemVersion;
     WORD MinorSubsystemVersion;
     DWORD Win32VersionValue;
-    DWORD SizeOfImage;  //æ–‡ä»¶è£…å…¥è™šæ‹Ÿå†…å­˜åå¤§å°
-    DWORD SizeOfHeaders;  //DOSã€NTå¤´å’ŒèŠ‚è¡¨å¤§å°
-    DWORD CheckSum;  //æ ¡éªŒå’Œ
+    DWORD SizeOfImage;  //ÎÄ¼ş×°ÈëĞéÄâÄÚ´æºó´óĞ¡
+    DWORD SizeOfHeaders;  //DOS¡¢NTÍ·ºÍ½Ú±í´óĞ¡
+    DWORD CheckSum;  //Ğ£ÑéºÍ
     WORD Subsystem;
     WORD DllCharacteristics;
-    DWORD SizeOfStackReserve;  //é¢„ç•™å †æ ˆå¤§å°
-    DWORD SizeOfStackCommit;  //å®é™…åˆ†é…å †æ ˆå¤§å°
-    DWORD SizeOfHeapReserve;  //é¢„ç•™å †å¤§å°
-    DWORD SizeOfHeapCommit;  //å®é™…åˆ†é…å †å¤§å°
+    DWORD SizeOfStackReserve;  //Ô¤Áô¶ÑÕ»´óĞ¡
+    DWORD SizeOfStackCommit;  //Êµ¼Ê·ÖÅä¶ÑÕ»´óĞ¡
+    DWORD SizeOfHeapReserve;  //Ô¤Áô¶Ñ´óĞ¡
+    DWORD SizeOfHeapCommit;  //Êµ¼Ê·ÖÅä¶Ñ´óĞ¡
     DWORD LoaderFlags;
-    DWORD NumberOfRvaAndSizes;  //ç›®å½•é¡¹æ•°ç›®
+    DWORD NumberOfRvaAndSizes;  //Ä¿Â¼ÏîÊıÄ¿
     struct _IMAGE_DATA_DIRECTORY DataDirectory[16];
 };
 
-//NTå¤´
+//NTÍ·
 struct _IMAGE_NT_HEADERS {
-    DWORD Signature;  //PEç­¾å
+    DWORD Signature;  //PEÇ©Ãû
     struct _IMAGE_FILE_HEADER FileHeader;
     struct _IMAGE_OPTIONAL_HEADER OptionalHeader;
 };
 
-//èŠ‚è¡¨
+//½Ú±í
 struct _IMAGE_SECTION_HEADER {
-    BYTE Name[8];  //èŠ‚è¡¨å
+    BYTE Name[8];  //½Ú±íÃû
     union {
         DWORD PhysicalAddress;
-        DWORD VirtualSize;  //å†…å­˜ä¸­æœªå¯¹é½å¤§å°
+        DWORD VirtualSize;  //ÄÚ´æÖĞÎ´¶ÔÆë´óĞ¡
     } Misc;
-    DWORD VirtualAddress;  //è¯¥èŠ‚åœ¨å†…å­˜ä¸­åç§»åœ°å€
-    DWORD SizeOfRawData;  //è¯¥èŠ‚åœ¨ç¡¬ç›˜ä¸Šæ–‡ä»¶å¯¹é½åå¤§å°
-    DWORD PointerToRawData;  //è¯¥èŠ‚åœ¨ç¡¬ç›˜ä¸Šæ–‡ä»¶å¯¹é½ååç§»åœ°å€
+    DWORD VirtualAddress;  //¸Ã½ÚÔÚÄÚ´æÖĞÆ«ÒÆµØÖ·
+    DWORD SizeOfRawData;  //¸Ã½ÚÔÚÓ²ÅÌÉÏÎÄ¼ş¶ÔÆëºó´óĞ¡
+    DWORD PointerToRawData;  //¸Ã½ÚÔÚÓ²ÅÌÉÏÎÄ¼ş¶ÔÆëºóÆ«ÒÆµØÖ·
     DWORD PointerToRelocations;
     DWORD PointerToLinenumbers;
     WORD NumberOfRelocations;
     WORD NumberOfLinenumbers;
-    DWORD Characteristics;  //è¯¥èŠ‚ç‰¹å¾å±æ€§
+    DWORD Characteristics;  //¸Ã½ÚÌØÕ÷ÊôĞÔ
 };
 
-//å¯¼å‡ºè¡¨
-struct _IMAGE_EXPORT_DIRECTORY {   //40å­—èŠ‚
-    DWORD Characteristics;  //æœªä½¿ç”¨
-    DWORD TimeDateStamp;  //æ—¶é—´æˆ³
-    WORD MajorVersion;  //æœªä½¿ç”¨
-    WORD MinorVersion;    //æœªä½¿ç”¨
-    DWORD Name;  //æŒ‡å‘è¯¥å¯¼å‡ºè¡¨æ–‡ä»¶åå­—ç¬¦ä¸²  *
-    DWORD Base;  //å¯¼å‡ºå‡½æ•°èµ·å§‹åºå·  *
-    DWORD NumberOfFunctions;  //æ‰€æœ‰å¯¼å‡ºå‡½æ•°çš„ä¸ªæ•°  *
-    DWORD NumberOfNames;  //ä»¥å‡½æ•°åå­—å¯¼å‡ºçš„å‡½æ•°ä¸ªæ•°  *
-    DWORD AddressOfFunctions;  //å¯¼å‡ºå‡½æ•°åœ°å€è¡¨RVA  *
-    DWORD AddressOfNames;  //å¯¼å‡ºå‡½æ•°åç§°è¡¨RVA  *
-    DWORD AddressOfNameOrdinals;  //å¯¼å‡ºå‡½æ•°åºå·è¡¨RVA  *
+//µ¼³ö±í
+struct _IMAGE_EXPORT_DIRECTORY {   //40×Ö½Ú
+    DWORD Characteristics;  //Î´Ê¹ÓÃ
+    DWORD TimeDateStamp;  //Ê±¼ä´Á
+    WORD MajorVersion;  //Î´Ê¹ÓÃ
+    WORD MinorVersion;    //Î´Ê¹ÓÃ
+    DWORD Name;  //Ö¸Ïò¸Ãµ¼³ö±íÎÄ¼şÃû×Ö·û´®  *
+    DWORD Base;  //µ¼³öº¯ÊıÆğÊ¼ĞòºÅ  *
+    DWORD NumberOfFunctions;  //ËùÓĞµ¼³öº¯ÊıµÄ¸öÊı  *
+    DWORD NumberOfNames;  //ÒÔº¯ÊıÃû×Öµ¼³öµÄº¯Êı¸öÊı  *
+    DWORD AddressOfFunctions;  //µ¼³öº¯ÊıµØÖ·±íRVA  *
+    DWORD AddressOfNames;  //µ¼³öº¯ÊıÃû³Æ±íRVA  *
+    DWORD AddressOfNameOrdinals;  //µ¼³öº¯ÊıĞòºÅ±íRVA  *
 };
 
-//é‡å®šä½è¡¨
+//ÖØ¶¨Î»±í
 struct _IMAGE_BASE_RELOCATION {
     DWORD VirtualAddress;
     DWORD SizeOfBlock;
 };
 
-//å¯¼å…¥è¡¨ï¼Œæœ‰å¾ˆå¤šä¸ªè¿™ç§ç»“æ„ï¼ˆæˆå‘˜å…¨ä¸º0ï¼Œè¡¨ç¤ºç»“æŸï¼‰
+//µ¼Èë±í£¬ÓĞºÜ¶à¸öÕâÖÖ½á¹¹£¨³ÉÔ±È«Îª0£¬±íÊ¾½áÊø£©
 struct _IMAGE_IMPORT_DESCRIPTOR {
     union {
         DWORD Characteristics;
-        DWORD OriginalFirstThunk;  //RVAï¼ŒæŒ‡å‘IMAGE_THUNK_DATAç»“æ„æ•°ç»„ï¼ˆINTè¡¨ï¼‰
+        DWORD OriginalFirstThunk;  //RVA£¬Ö¸ÏòIMAGE_THUNK_DATA½á¹¹Êı×é£¨INT±í£©
     };
-    DWORD TimeDateStamp;  //æ—¶é—´æˆ³	ï¼ˆç”¨äºåˆ¤æ–­æ˜¯å¦æœ‰ç»‘å®šå¯¼å…¥è¡¨/IATè¡¨ä¸­æ˜¯å¦å·²ç»ç»‘å®šç»å¯¹åœ°å€ï¼‰
+    DWORD TimeDateStamp;  //Ê±¼ä´Á	£¨ÓÃÓÚÅĞ¶ÏÊÇ·ñÓĞ°ó¶¨µ¼Èë±í/IAT±íÖĞÊÇ·ñÒÑ¾­°ó¶¨¾ø¶ÔµØÖ·£©
     DWORD ForwarderChain;
-    DWORD Name;  //RVAï¼ŒæŒ‡å‘dllåå­—å­—ç¬¦ä¸²å­˜å‚¨åœ°å€
-    DWORD FirstThunk;  //RVA,æŒ‡å‘IMAGE_THUNK_DATAç»“æ„æ•°ç»„ï¼ˆIATè¡¨ï¼‰
+    DWORD Name;  //RVA£¬Ö¸ÏòdllÃû×Ö×Ö·û´®´æ´¢µØÖ·
+    DWORD FirstThunk;  //RVA,Ö¸ÏòIMAGE_THUNK_DATA½á¹¹Êı×é£¨IAT±í£©
 };
 
-//INTè¡¨å’Œè¿è¡Œå‰IATè¡¨
+//INT±íºÍÔËĞĞÇ°IAT±í
 struct _IMAGE_THUNK_DATA32 {
     union {
         BYTE ForwarderString;
         DWORD Function;
-        DWORD Ordinal;  //åºå·
-        struct _IMAGE_IMPORT_BY_NAME *AddressOfData;  //RVAï¼ŒæŒ‡å‘IMAGE_IMPORT_BY_NAME
+        DWORD Ordinal;  //ĞòºÅ
+        struct _IMAGE_IMPORT_BY_NAME *AddressOfData;  //RVA£¬Ö¸ÏòIMAGE_IMPORT_BY_NAME
     };
 };
 
 struct _IMAGE_IMPORT_BY_NAME {
-    WORD Hint;  //å¯èƒ½ä¸ºç©ºï¼ˆç¼–è¯‘å™¨å†³å®šï¼‰ï¼›å¦‚æœä¸ä¸ºç©ºï¼Œè¡¨ç¤ºå‡½æ•°åœ¨å¯¼å‡ºè¡¨ä¸­çš„ç´¢å¼•
-    BYTE Name[1];  //å‡½æ•°åç§°ï¼Œä»¥0ç»“å°¾
+    WORD Hint;  //¿ÉÄÜÎª¿Õ£¨±àÒëÆ÷¾ö¶¨£©£»Èç¹û²»Îª¿Õ£¬±íÊ¾º¯ÊıÔÚµ¼³ö±íÖĞµÄË÷Òı
+    BYTE Name[1];  //º¯ÊıÃû³Æ£¬ÒÔ0½áÎ²
 };
 
-struct _IMAGE_BOUND_IMPORT_DESCRIPTOR{
-    DWORD TimeDateStamp;  //æ—¶é—´æˆ³
-    WORD OffsetModuleName;	//DLLçš„åå­—RVAï¼ˆåŠ ç¬¬ä¸€ä¸ªç»“æ„ä¸­RVAæ‰æ˜¯å­—ç¬¦ä¸²çœŸæ­£RVAï¼Œè¯¦è§ä¸‹é¢ï¼‰
-    WORD NumberOfModuleForwarderRefs;  //è¿™ä¸ªç»‘å®šå¯¼å…¥è¡¨ç»“æ„åé¢è¿˜æœ‰å‡ ä¸ª_IMAGE_BOUND_FORWARDER_REFè¿™ç§ç»“æ„
-};  //ç»‘å®šå¯¼å…¥è¡¨æœ‰å¾ˆå¤šè¿™ç§ç»“æ„æˆ–è€…_IMAGE_BOUND_FORWARDER_REFè¿™ç§ç»“æ„ï¼Œæœ€åå¦‚æœæœ‰sizeof(_IMAGE_BOUND_IMPORT_DESCRIPTOR)ä¸ª0ï¼Œè¡¨ç¤ºç»‘å®šå¯¼å…¥è¡¨ç»“æŸ
+struct _IMAGE_BOUND_IMPORT_DESCRIPTOR {
+    DWORD TimeDateStamp;  //Ê±¼ä´Á
+    WORD OffsetModuleName;    //DLLµÄÃû×ÖRVA£¨¼ÓµÚÒ»¸ö½á¹¹ÖĞRVA²ÅÊÇ×Ö·û´®ÕæÕıRVA£¬Ïê¼ûÏÂÃæ£©
+    WORD NumberOfModuleForwarderRefs;  //Õâ¸ö°ó¶¨µ¼Èë±í½á¹¹ºóÃæ»¹ÓĞ¼¸¸ö_IMAGE_BOUND_FORWARDER_REFÕâÖÖ½á¹¹
+};  //°ó¶¨µ¼Èë±íÓĞºÜ¶àÕâÖÖ½á¹¹»òÕß_IMAGE_BOUND_FORWARDER_REFÕâÖÖ½á¹¹£¬×îºóÈç¹ûÓĞsizeof(_IMAGE_BOUND_IMPORT_DESCRIPTOR)¸ö0£¬±íÊ¾°ó¶¨µ¼Èë±í½áÊø
 
 struct _IMAGE_BOUND_FORWARDER_REF {
-    DWORD TimeDateStamp;  //æ—¶é—´æˆ³
-    WORD OffsetModuleName;  //å¯¹åº”DLLçš„åå­—
-    WORD Reserved;  //ä¿ç•™ï¼ˆæœªä½¿ç”¨ï¼‰
+    DWORD TimeDateStamp;  //Ê±¼ä´Á
+    WORD OffsetModuleName;  //¶ÔÓ¦DLLµÄÃû×Ö
+    WORD Reserved;  //±£Áô£¨Î´Ê¹ÓÃ£©
 };
+
+typedef struct _IMAGE_RESOURCE_DIRECTORY {
+    DWORD Characteristics;                        //×ÊÔ´ÊôĞÔ  ±£Áô 0
+    DWORD TimeDateStamp;                        //×ÊÔ´´´½¨µÄÊ±¼ä
+    WORD MajorVersion;                        //×ÊÔ´°æ±¾ºÅ Î´Ê¹ÓÃ 0
+    WORD MinorVersion;                        //×ÊÔ´°æ±¾ºÅ Î´Ê¹ÓÃ 0
+    WORD NumberOfNamedEntries;                        //ÒÔÃû³ÆÃüÃûµÄ×ÊÔ´ÊıÁ¿
+    WORD NumberOfIdEntries;                        //ÒÔIDÃüÃûµÄ×ÊÔ´ÊıÁ¿
+//  IMAGE_RESOURCE_DIRECTORY_ENTRY DirectoryEntries[];
+} IMAGE_RESOURCE_DIRECTORY, *PIMAGE_RESOURCE_DIRECTORY;
+
+typedef struct _IMAGE_RESOURCE_DIRECTORY_ENTRY {
+    union {                        //Ä¿Â¼ÏîµÄÃû³Æ¡¢»òÕßID
+        struct {
+            DWORD NameOffset: 31;
+            DWORD NameIsString: 1;
+        };
+        DWORD Name;
+        WORD Id;
+    };
+    union {
+        DWORD OffsetToData;                        //Ä¿Â¼ÏîÖ¸Õë
+        struct {
+            DWORD OffsetToDirectory: 31;
+            DWORD DataIsDirectory: 1;
+        };
+    };
+} IMAGE_RESOURCE_DIRECTORY_ENTRY, *PIMAGE_RESOURCE_DIRECTORY_ENTRY;
+
+typedef struct _IMAGE_RESOURCE_DIR_STRING_U {
+    WORD Length;
+    wchar_t NameString[1];
+} IMAGE_RESOURCE_DIR_STRING_U, *PIMAGE_RESOURCE_DIR_STRING_U;
+
+typedef struct _IMAGE_DATA_DIRECTORY IMAGE_DATA_DIRECTORY, *PIMAGE_DATA_DIRECTORY;
 
 #endif //PETOOL_PE_STRUCT_H
